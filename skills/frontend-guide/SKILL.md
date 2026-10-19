@@ -18,16 +18,37 @@ How to use:
   2. List **every** UI issue found as a **numbered list**, one issue per item:
      where it is (file:line or screen/component), what is wrong, and the rule it
      breaks.
-  3. Stop and wait. Fix only the items the user picks (e.g. "fix 1, 3, 5" or
-     "fix all").
-  4. If nothing is wrong, say so in one line.
+  3. Give each issue a **priority** and group the list under **High**, **Medium**,
+     **Low** (in that order). Keep the numbers running across groups so each
+     number is unique. Leave out a group that has no issues.
+  4. Stop and wait. Fix only the items the user picks (e.g. "fix 1, 3, 5",
+     "fix all High" or "fix all").
+  5. If nothing is wrong, say so in one line.
+
+Priority levels:
+
+| Priority | Meaning | Typical rules |
+|---|---|---|
+| **High** | Blocks the user, causes mistakes or data loss, misleads, or fails accessibility | raw errors / stack traces shown, text fails contrast, field with no visible label, destructive action not separated or not confirmable, tap with no feedback, touch target too small, hidden real price, dark patterns |
+| **Medium** | Slows the user down or confuses them, but they can still finish | no clear primary action, errors not inline, validation while typing, missing masks / format hints, wrong control for the data, disabled button with no reason, spinner instead of skeleton, hidden active filters, infinite scroll on lookup data, look-alike options, no undo, popup for non-critical asks |
+| **Low** | Visual polish; works fine but looks or reads less well | spacing / grouping, doubled padding, nested radius, alignment, letter-spacing, line height, pure black / white, theme saturation, logo position, numbers not right-aligned |
+
+The table is a default. Raise or lower a priority when the context makes the
+impact bigger or smaller (e.g. a Low alignment issue on the checkout button can be
+Medium), and say why in the item.
 
 Report format:
 
 ```
+High
 1. LoginForm.tsx:42 — Email field uses the placeholder as its label. (Forms: always show a visible label)
-2. SettingsPage — Save, Preview, Duplicate and Cancel are all filled primary buttons. (Hierarchy: one primary action per view)
-3. ...
+2. OrderPage.tsx:118 — API error shows the raw 500 message and stack trace. (States: never show the backend to users)
+
+Medium
+3. SettingsPage — Save, Preview, Duplicate and Cancel are all filled primary buttons. (Hierarchy: one primary action per view)
+
+Low
+4. ProductCard.tsx:20 — Image radius equals the card radius, corner gap looks uneven. (Layout: inner radius = outer radius − gap)
 ```
 
 ---
