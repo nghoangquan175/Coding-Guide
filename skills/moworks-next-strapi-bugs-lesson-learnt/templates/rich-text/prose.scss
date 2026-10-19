@@ -1,0 +1,411 @@
+// ============================================================================
+// `.Prose` — CKEditor 5 output, styled to match the site's own type system.
+//
+// Every other component sets its own type via a named class from
+// typos-fonts.scss, applied per element — the house rule in AGENTS.md is
+// "type comes from a class, never a size". CKEditor hands back a raw HTML
+// string (`<h2>`, `<p>`, `<strong>`, `<a>`, `<ul>`/`<ol>`/`<li>`, `<img>`),
+// so there is no element to put a class on until it exists in the DOM.
+// `.Prose` is the one place per-tag CSS is the right tool instead: a single
+// scoped selector per tag, `@apply`-ing the SAME named classes everything
+// else uses, so a paragraph of rich text still renders as `.ContentSBook`
+// under the hood — this is what makes CKEditor's WYSIWYG preview match the
+// frontend, the client's own ask.
+//
+// Callers set size (ContentSBook vs ContentMBook, mobile vs desktop) with an
+// ordinary `className` on the wrapper, same as every other typography call
+// site — `.Prose` only adds the tags Tailwind utilities can't reach: the
+// element selectors themselves.
+//
+// `h2` defaults to a real heading size (Legal's whole-document body, where
+// CKEditor's own heading button replaces what used to be a separate
+// "subhead" field) — `ArticleBody` overrides it back down to body-sized-bold
+// with `[&_h2]:ContentSBold`, matching the old `article.heading` block's own
+// spec ("same 20px size as the body").
+// ============================================================================
+
+@layer components {
+  .Prose {
+    h2 {
+      @apply HeadingXSBold;
+      margin-top: 24px;
+
+      &:first-child {
+        margin-top: 0;
+      }
+    }
+
+    h3 {
+      @apply ContentLBold;
+      margin-top: 24px;
+
+      &:first-child {
+        margin-top: 0;
+      }
+    }
+
+    p {
+      @apply ContentSBook;
+
+      & + p {
+        margin-top: 16px;
+      }
+    }
+
+    h2 + p,
+    h2 + ul,
+    h2 + ol,
+    h2 + figure,
+    h3 + p,
+    h3 + ul,
+    h3 + ol,
+    h3 + figure {
+      margin-top: 16px;
+    }
+
+    strong,
+    b {
+      font-weight: 700;
+    }
+
+    em,
+    i {
+      font-style: italic;
+    }
+
+    a {
+      @apply text-teal-blue-700 underline underline-offset-2;
+    }
+
+    ul,
+    ol {
+      @apply ContentSBook;
+      padding-left: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    ul {
+      list-style-type: disc;
+    }
+
+    ol {
+      list-style-type: decimal;
+    }
+
+    li > ul,
+    li > ol {
+      margin-top: 8px;
+    }
+
+    * + ul,
+    * + ol,
+    ul + *,
+    ol + * {
+      margin-top: 16px;
+    }
+
+    // Inline images — CKEditor's media-library insert, not the old
+    // full-bleed `article.image` block or the two-column `article.split`.
+    // Content-width and rounded to match every other photo card on the
+    // site; there is no controlled height or side-by-side layout available
+    // to a flat rich-text field, so this is the closest equivalent, not a
+    // reproduction.
+    // `width` is the default a resized image overrides from its own inline
+    // style — see the hook in `Prose`. `max-width` keeps that override inside
+    // the column, whatever percentage the editor dragged it to.
+    img,
+    figure {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      border-radius: 16px;
+      margin-top: 16px;
+    }
+
+    // A resized image is placed by the `text-align` of the paragraph holding
+    // it, which is how the editor shows it — and a block box ignores that, so
+    // only the narrowed ones become inline. `[style]` is exactly the resized
+    // set: the hook leaves the attribute on nothing else.
+    img[style] {
+      display: inline-block;
+      vertical-align: top;
+    }
+
+    figcaption {
+      @apply ContentSBook text-teal-blue-800;
+      margin-top: 8px;
+    }
+
+    * + img,
+    * + figure {
+      margin-top: 16px;
+    }
+
+    img + *,
+    figure + * {
+      margin-top: 16px;
+    }
+
+    // Every picture is the same height on a phone, whatever shape it was
+    // uploaded at. A column is ~327px wide there, so a portrait runs to a
+    // metre of scrolling and a wide crop comes out as a strip — a fixed height
+    // gives the body one rhythm instead of one per photograph.
+    //
+    // `cover` rather than `contain`, so it fills the box and crops instead of
+    // letterboxing itself against the page.
+    @media (max-width: 767px) {
+      img {
+        height: 320px !important;
+        object-fit: cover !important;
+      }
+    }
+
+    // Tables — the editor's layout tool as much as a data one. It is how a
+    // picture gets put beside its text with a split the editor chooses, which
+    // is what they were allowed in for.
+    //
+    // `figure:has(> table)` rather than the `.table` class CKEditor writes:
+    // the sanitizer keeps only the image classes (KEEPABLE_CLASSES in
+    // rich-text.ts) and `table` is not one, so the shape of the markup is what
+    // selects it.
+    figure:has(> table) {
+      // Narrower than the measure on a phone, and a table cannot reflow. It
+      // scrolls inside its own box rather than pushing the page sideways.
+      overflow-x: auto;
+      max-width: 100%;
+    }
+
+    table {
+      width: 100%;
+      // Separate, so the transparent borders that make the gaps stay their own
+      // 8px rather than merging into one — see the cells below. Spacing is
+      // zeroed because the borders are doing that job, and `border-spacing`
+      // would also lay space around the outside of the table.
+      border-collapse: separate;
+      border-spacing: 0;
+      // A column with a width set in the editor keeps it; the rest divide what
+      // is left. Without this the browser sizes to content and ignores both.
+      table-layout: fixed;
+    }
+
+    // No rules by default. The design has no table in it, so a hairline grid
+    // would be an invention — the cells are spaced and the header is bolder,
+    // which is enough to read a row by and stays out of a two-cell layout's
+    // way when the table is holding a picture beside a paragraph.
+    th,
+    td {
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      @apply ContentSBold;
+    }
+
+    // The gap between cells, as a transparent BORDER rather than padding.
+    //
+    // Two reasons, and both matter. A border is outside the padding box, and
+    // the padding box is what an absolutely positioned child is measured
+    // against — so the picture below fills its cell exactly and stops at the
+    // gap, where padding would have let it cover the gap instead. And with
+    // `box-sizing: border-box` the border comes out of the column the same way
+    // padding would, so splitting it 8 and 8 across the two cells that face
+    // each other takes the same amount from each: 50/50 stays 50/50.
+    //
+    // The outer sides get none, so the table's own edges stay flush with the
+    // measure. `border-collapse` has to be `separate` or the two facing
+    // borders would merge into one 8px gap instead of 16.
+    //
+    // 16 across and 24 down are the design's own gaps: `gap-[16px]` on the row
+    // putting a picture beside its text (node 4323:9973) and `gap-[24px]` on
+    // the stack those rows sit in (node 4323:9970).
+    td:not(:last-child),
+    th:not(:last-child) {
+      border-right: 8px solid transparent;
+    }
+
+    td:not(:first-child),
+    th:not(:first-child) {
+      border-left: 8px solid transparent;
+    }
+
+    tr:not(:last-child) > td,
+    tr:not(:last-child) > th {
+      border-bottom: 12px solid transparent;
+    }
+
+    tr:not(:first-child) > td,
+    tr:not(:first-child) > th {
+      border-top: 12px solid transparent;
+    }
+
+    // The cell is what the picture below is positioned against. Without this
+    // it is measured against the nearest positioned ancestor instead — which
+    // is not the cell, so the picture leaves it entirely.
+    td,
+    th {
+      position: relative;
+    }
+
+    // A picture in a cell fills it, top to bottom, and crops — the design's
+    // `self-stretch` (node 4323:9978).
+    //
+    // Out of flow, which is the whole point: the row's height is the text
+    // cell's business, and a picture in normal flow would push the row taller
+    // than the words beside it. Absolute takes it out of that calculation, so
+    // it fills whatever height the text decides and never sets it.
+    //
+    // `inset: 0` is the cell's padding box — inside the border above, so the
+    // gap stays a gap.
+    //
+    // The margins go here too. Every `img` and `figure` in this stylesheet
+    // carries a 16px top margin for the run of a document, and in a cell that
+    // is a picture hanging below the top of its own box. The figure needs it
+    // as much as the image does, because CKEditor wraps a picture in one.
+    td > img:only-child,
+    th > img:only-child,
+    td > figure.image:only-child,
+    th > figure.image:only-child {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+    }
+
+    td > img:only-child,
+    th > img:only-child,
+    td > figure.image:only-child > img {
+      object-fit: cover;
+      border-radius: 16px;
+      margin: 0;
+    }
+
+    td > figure.image:only-child > img {
+      height: 100%;
+    }
+
+    // Unless the editor sized it. Then the width is theirs, the height follows
+    // the picture, and where it sits in the cell is theirs too — `text-align`
+    // from the cell's own properties, or the align buttons on the picture,
+    // which arrive as the classes below.
+    td figure.image_resized,
+    th figure.image_resized,
+    td img[style],
+    th img[style] {
+      height: auto;
+      object-fit: fill;
+    }
+
+    td figure.image_resized img,
+    th figure.image_resized img {
+      width: 100%;
+      height: auto;
+    }
+
+    // Centred is CKEditor's DEFAULT block style (`block`, `isDefault: true`),
+    // and a default style writes no class — the "Break text -> centre" button
+    // leaves a bare `figure.image`, with nothing for `image-style-align-center`
+    // to match. The editor centres it with its own `.ck-content .image
+    // { margin: auto }`, so the page has to as well, or a resized picture the
+    // editor centred lands on the left. The left and right classes below come
+    // after it and win at the same specificity.
+    figure.image,
+    figure.image-style-align-center {
+      margin-inline: auto;
+    }
+
+    figure.image-style-align-right,
+    figure.image-style-block-align-right {
+      margin-inline-start: auto;
+      margin-inline-end: 0;
+    }
+
+    figure.image-style-align-left,
+    figure.image-style-block-align-left {
+      margin-inline-start: 0;
+      margin-inline-end: auto;
+    }
+
+    // One column on a phone. A two-column split that works at the 648px
+    // measure is two columns of roughly 300px on a 375 screen, which is not a
+    // layout — it is a picture and a paragraph both too narrow to read.
+    //
+    // `display: block` is what takes a table out of table layout, and with it
+    // go the column widths, which is the point: every cell becomes full width
+    // and they stack in source order. The gap between them is a margin rather
+    // than the padding above, since there are no columns left to take it out
+    // of, and the picture goes back to its own proportion because there is no
+    // row height to fill.
+    @media (max-width: 767px) {
+      table,
+      colgroup,
+      thead,
+      tbody,
+      tfoot,
+      tr,
+      th,
+      td {
+        display: block;
+        width: 100%;
+      }
+
+      colgroup {
+        display: none;
+      }
+
+      // The sideways gap goes. There are no columns left for it to sit
+      // between, and on the edge of a stacked cell it is only an inset.
+      th,
+      td {
+        border-left-width: 0 !important;
+        border-right-width: 0 !important;
+      }
+
+      // The gap down the stack drops to 8 and 8 — 16px between one thing and
+      // the next on a phone, against the 24 the desktop rows get.
+      //
+      // Still a border, never a margin. Stacked, a cell is the first child of
+      // its row, and a first child's top margin collapses with its parent's —
+      // through the row, through the table, out to the figure — so the gap
+      // would leave the table and appear above it. Borders do not collapse.
+      tr:not(:last-child) > td,
+      tr:not(:last-child) > th {
+        border-bottom-width: 8px;
+      }
+
+      tr:not(:first-child) > td,
+      tr:not(:first-child) > th {
+        border-top-width: 8px;
+      }
+
+      // The two cells of a single row are stacked now as well, so they need
+      // the same gap between them that the rows have.
+      td + td,
+      th + th {
+        border-top: 8px solid transparent;
+      }
+
+      // Back into flow: stacked, there is nothing beside the picture to match
+      // and no row height to fill, so it takes the same fixed height every
+      // other picture has on a phone — see the rule below.
+      td > img:only-child,
+      th > img:only-child,
+      td > figure.image:only-child {
+        position: static;
+      }
+
+      td > figure.image:only-child {
+        height: auto;
+      }
+    }
+
+    caption {
+      @apply ContentSBook text-teal-blue-800;
+      margin-bottom: 8px;
+      text-align: left;
+    }
+  }
+}

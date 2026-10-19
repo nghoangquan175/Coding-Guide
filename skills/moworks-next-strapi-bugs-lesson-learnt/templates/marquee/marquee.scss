@@ -1,0 +1,56 @@
+// The marquee's CSS. In Galambila this lives in `styles/includes/animation.scss`.
+// Pairs with `Marquee.tsx` — `GAP` there must equal `--marquee-gap` here.
+
+// The track is two identical halves, so translating one half's width lands the
+// second exactly where the first began. Each half is the caller's items
+// repeated enough times to fill the frame, and every gap in it — between items
+// and between repeats — is --marquee-gap, so the rhythm never breaks.
+
+// Hidden until Marquee.tsx has measured. The server cannot know how many
+// repeats fill the frame, so its markup is one short run at a placeholder pace.
+// Reduced motion never animates, so it shows immediately.
+.marquee-frame {
+  opacity: 0;
+  transition: opacity 200ms linear;
+}
+
+.marquee-frame[data-ready] {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-frame {
+    opacity: 1;
+  }
+}
+
+.marquee-track {
+  --marquee-gap: 16px;
+
+  gap: var(--marquee-gap);
+  // Placeholder only. Marquee.tsx writes the real duration onto the node from
+  // the measured width, so the pace is pixels per second, not seconds per pass.
+  animation-duration: 35s;
+  animation-name: marquee-drift;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+// -50% is one half. The extra half-gap is the gap BETWEEN the two halves: the
+// flex `gap` puts one there, so a half plus that gap is the true period.
+// Leave it out and the loop jumps by 8px every pass.
+@keyframes marquee-drift {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-50% - (var(--marquee-gap) / 2)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+  }
+}
