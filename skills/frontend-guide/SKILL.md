@@ -12,8 +12,23 @@ never invent one here.
 
 How to use:
 - **Building** — read the section for what you are making before you write it.
-- **Reviewing** — run the [checklist](#review-checklist) at the end against the
-  screen or the diff and report each miss with the rule it breaks.
+- **Reviewing or checking existing UI** — run the [checklist](#review-checklist)
+  against the screen or the diff, then **report first, fix later**:
+  1. Do **not** edit any code yet.
+  2. List **every** UI issue found as a **numbered list**, one issue per item:
+     where it is (file:line or screen/component), what is wrong, and the rule it
+     breaks.
+  3. Stop and wait. Fix only the items the user picks (e.g. "fix 1, 3, 5" or
+     "fix all").
+  4. If nothing is wrong, say so in one line.
+
+Report format:
+
+```
+1. LoginForm.tsx:42 — Email field uses the placeholder as its label. (Forms: always show a visible label)
+2. SettingsPage — Save, Preview, Duplicate and Cancel are all filled primary buttons. (Hierarchy: one primary action per view)
+3. ...
+```
 
 ---
 
