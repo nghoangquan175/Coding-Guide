@@ -94,8 +94,40 @@ curl -sI localhost:3000/<page> | grep -i x-robots-tag
 ```
 
 Check one nested page as well as home — that is where inheritance breaks. Open the
-`og:image` URL itself. After launch: Search Console (submit the sitemap, URL inspection),
-the Rich Results Test for the JSON-LD, and a share preview (LinkedIn Post Inspector).
+`og:image` URL itself. After launch: Search Console (below), the Rich Results Test for
+the JSON-LD, and a share preview (LinkedIn Post Inspector).
+
+## Search Console after launch
+
+Use a **Domain** property (covers http/https/www/subdomains). A URL-prefix property for
+the wrong host (`www.` with no DNS record) never fetches anything.
+
+Sitemap and Request Indexing are different tools:
+
+| | Submit sitemap | URL Inspection → Request Indexing |
+|---|---|---|
+| Tells Google | every URL the site has | crawl this one URL now |
+| Speed | queued with normal crawling | faster, hours to days |
+| Lasts | yes — new pages are found later | one-off, daily quota |
+
+On a small new site, request indexing for home and the key pages right away; the
+sitemap is for the long run.
+
+What to expect and how to check the truth:
+- **"Couldn't fetch" on a just-submitted sitemap** is usually just pending. First run
+  URL Inspection → **Test live URL** on the sitemap itself. "URL is available to Google"
+  means it is fetchable — wait, or remove and resubmit (`sitemap.xml?v=2` if it stays
+  stuck). If the live test fails, it is the server or the CDN.
+- **Behind Cloudflare**: Under Attack Mode makes the sitemap "Couldn't fetch" even though
+  everything else is right — check the zone's audit log for `security_level` changes.
+  See the `cloudflare-security` skill. `curl -A Googlebot` from your machine proves
+  nothing; only the live test uses Google's IPs.
+- **Indexing → Pages stays empty for days** on a new property — the report lags. The real
+  status is URL Inspection's **Google Index** tab ("URL is on Google") or a
+  `site:<domain>` search.
+- A Cloudflare-managed robots.txt prepends its own block (AI crawlers disallowed) before
+  the app's rules. That is fine — Googlebot is not in it — but read the live file, not
+  `robots.ts`, when checking.
 
 ## Reporting an audit
 

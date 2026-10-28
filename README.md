@@ -6,6 +6,8 @@ All the skills, patterns and rules I have put together while working as a Fullst
 
 ```
 skills/                                   Claude Code skills (one folder per skill)
+├── cloudflare-security/                  Audit and harden a Cloudflare zone, read its traffic
+│   └── SKILL.md
 ├── ec2-docker-ghcr-deploy/                Deploy to EC2: Actions → GHCR → docker compose over SSH
 │   ├── SKILL.md
 │   └── references/                       server (Nginx, certbot, Cloudflare), pipeline (workflow, compose)
@@ -29,13 +31,14 @@ skills/                                   Claude Code skills (one folder per ski
 
 | Skill | What it does |
 |---|---|
+| `cloudflare-security` | Audit and harden a Cloudflare zone (Free plan) over the API: security level, Bot Fight Mode, AI-bot blocking, scanner rule, login rate limit, HTTPS/TLS, when (not) to use Under Attack Mode. Reads the analytics to tell scanners from users and Googlebot, and lists the API calls that silently reset settings. |
 | `ec2-docker-ghcr-deploy` | Take a Next.js + Strapi repo to production on one EC2 box behind Cloudflare: GitHub Actions builds images to GHCR and deploys with docker compose over SSH. Swap, Nginx, certbot DNS-01, Cloudflare-only origin, first Strapi admin + API token, and every mistake made on the first run. |
 | `ec2-pm2-deploy` | Same production setup without Docker: Actions ships the source over SSH, the server builds a release directory and PM2 reloads it, with one-command rollback. Not run end to end yet — verify on first use. |
 | `frontend-guide` | General UI/UX rules for building and reviewing screens: hierarchy, spacing, color, typography, forms, buttons, loading/error states, data display. Ends with a review checklist. |
 | `moworks-next-strapi-set-up` | Start a new Next.js + Strapi project from two empty repos: scaffold both apps, boot Postgres, create the Strapi admin, check both apps run, push the first commit. |
 | `moworks-next-strapi-bugs-lesson-learnt` | Review a change or a whole repo against bugs the team has hit before (forms, CMS, responsive, Tailwind, SEO, security...). Also has recipes for CKEditor rich text and an infinite marquee. |
 | `moworks-workflow-fixbug` | Work through the bug tickets in ClickUp: sort, fix, review against the checklist, ship to staging and report on the tickets. |
-| `nextjs-seo` | Build or audit technical SEO on a Next.js App Router site: metadataBase and canonicals, CMS-editable titles with fallbacks, generated Open Graph images, robots and noindex per environment, a sitemap that matches the real pages, JSON-LD, manifest and GTM. |
+| `nextjs-seo` | Build or audit technical SEO on a Next.js App Router site: metadataBase and canonicals, CMS-editable titles with fallbacks, generated Open Graph images, robots and noindex per environment, a sitemap that matches the real pages, JSON-LD, manifest and GTM. Also how to read Search Console after launch: sitemap vs request indexing, "Couldn't fetch", the lagging Pages report. |
 
 ## How to use
 
