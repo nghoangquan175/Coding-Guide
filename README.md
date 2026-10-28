@@ -6,14 +6,11 @@ All the skills, patterns and rules I have put together while working as a Fullst
 
 ```
 skills/                                   Claude Code skills (one folder per skill)
+├── aws-deploy/                           Deploy to AWS: S3+CloudFront, Lambda API, EC2 (Docker or PM2)
+│   ├── SKILL.md                          pick the option, shared rules, mistakes from real deploys
+│   └── references/                       s3-cloudfront, lambda-api, ec2-server/docker/pm2, github-oidc, ssm-parameters
 ├── cloudflare-security/                  Audit and harden a Cloudflare zone, read its traffic
 │   └── SKILL.md
-├── ec2-docker-ghcr-deploy/                Deploy to EC2: Actions → GHCR → docker compose over SSH
-│   ├── SKILL.md
-│   └── references/                       server (Nginx, certbot, Cloudflare), pipeline (workflow, compose)
-├── ec2-pm2-deploy/                       Deploy to EC2 with PM2: release dirs, build on the server
-│   ├── SKILL.md
-│   └── references/                       server (Node, PM2, certbot), pipeline (ecosystem, deploy.sh, workflow)
 ├── frontend-guide/                       General UI/UX rules for any frontend
 │   └── SKILL.md
 ├── moworks-next-strapi-set-up/           Set up a new Next.js + Strapi project
@@ -31,9 +28,8 @@ skills/                                   Claude Code skills (one folder per ski
 
 | Skill | What it does |
 |---|---|
+| `aws-deploy` | Deploy a project to AWS and pick the shape that fits it: static site on S3 + CloudFront, a Lambda API (API Gateway HTTP API or a function URL behind CloudFront), or a Next.js + Strapi app on one EC2 box with Docker/GHCR or PM2 behind Cloudflare. GitHub Actions to AWS over OIDC with no access keys, config and secrets in SSM Parameter Store, Terraform, ACM, Cloudflare DNS, Nginx + certbot + Cloudflare-only origin, smoke tests, and every mistake made on the real deploys. |
 | `cloudflare-security` | Audit and harden a Cloudflare zone (Free plan) over the API: security level, Bot Fight Mode, AI-bot blocking, scanner rule, login rate limit, HTTPS/TLS, when (not) to use Under Attack Mode. Reads the analytics to tell scanners from users and Googlebot, and lists the API calls that silently reset settings. |
-| `ec2-docker-ghcr-deploy` | Take a Next.js + Strapi repo to production on one EC2 box behind Cloudflare: GitHub Actions builds images to GHCR and deploys with docker compose over SSH. Swap, Nginx, certbot DNS-01, Cloudflare-only origin, first Strapi admin + API token, and every mistake made on the first run. |
-| `ec2-pm2-deploy` | Same production setup without Docker: Actions ships the source over SSH, the server builds a release directory and PM2 reloads it, with one-command rollback. Not run end to end yet — verify on first use. |
 | `frontend-guide` | General UI/UX rules for building and reviewing screens: hierarchy, spacing, color, typography, forms, buttons, loading/error states, data display. Ends with a review checklist. |
 | `moworks-next-strapi-set-up` | Start a new Next.js + Strapi project from two empty repos: scaffold both apps, boot Postgres, create the Strapi admin, check both apps run, push the first commit. |
 | `moworks-next-strapi-bugs-lesson-learnt` | Review a change or a whole repo against bugs the team has hit before (forms, CMS, responsive, Tailwind, SEO, security...). Also has recipes for CKEditor rich text and an infinite marquee. |

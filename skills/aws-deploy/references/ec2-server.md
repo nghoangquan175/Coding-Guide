@@ -1,10 +1,11 @@
-# Server — file bodies
+# EC2 server — file bodies (options C and D)
 
-Placeholders: `<domain>` (site), `<cms>` (CMS host), `<email>` (Let's Encrypt contact).
-Written for Amazon Linux 2023 (`dnf`); on Ubuntu swap `dnf` for `apt-get` and Docker's
-own apt repo.
+Placeholders: `<domain>` (site), `<cms>` (CMS host), `<email>` (Let's Encrypt contact),
+`<slug>`. Written for Amazon Linux 2023 (`dnf`); on Ubuntu swap `dnf` for `apt-get` and
+Docker's own apt repo. Sections marked **Docker** or **PM2** apply to that runtime only;
+everything else is shared.
 
-## Swap, Docker, Compose, Nginx
+## Swap (both)
 
 ```bash
 set -e
@@ -15,7 +16,13 @@ if ! swapon --show | grep -q swapfile; then
 fi
 echo "vm.swappiness=10" | sudo tee /etc/sysctl.d/99-swappiness.conf >/dev/null
 sudo sysctl -q -p /etc/sysctl.d/99-swappiness.conf
+```
 
+On a 1 GB box running PM2, the build on the server **will** use it.
+
+## Docker, Compose, Nginx (Docker)
+
+```bash
 sudo dnf install -y -q docker nginx
 # The Compose plugin is not packaged on AL2023 — install the release binary.
 sudo mkdir -p /usr/libexec/docker/cli-plugins
@@ -26,14 +33,53 @@ sudo systemctl enable --now docker
 sudo usermod -aG docker ec2-user        # takes effect on the next SSH session
 ```
 
-## Certificates — certbot DNS-01 in Docker
+## Node, pnpm, PM2, Nginx (PM2)
 
-Token in over stdin, root-only file:
+```bash
+sudo dnf install -y -q nodejs22 nodejs22-npm git nginx
+sudo alternatives --set node /usr/bin/node-22 2>/dev/null || true
+node -v                                   # expect v22.x
+sudo corepack enable                      # pnpm comes from each repo's packageManager pin
+sudo npm install -g pm2
+pm2 startup systemd -u ec2-user --hp /home/ec2-user   # prints a sudo line — run it
+```
+
+`pm2 save` after the first successful start (the deploy script does it every time).
+
+First-time layout:
+
+```bash
+sudo install -d -o ec2-user -g ec2-user -m 750 /opt/<slug> /opt/<slug>/releases /opt/<slug>/shared
+mkdir -p /opt/<slug>/shared/db /opt/<slug>/shared/uploads
+# env files into /opt/<slug>/shared (scp, or rendered from SSM — ssm-parameters.md), chmod 600
+```
+
+## Certificates — certbot DNS-01
+
+Pass the Cloudflare token over stdin into a root-only file (both runtimes):
 
 ```bash
 printf 'dns_cloudflare_api_token = %s\n' "$CF_TOKEN" | ssh <host> \
   'sudo mkdir -p /etc/letsencrypt && sudo install -m 600 -o root -g root /dev/stdin /etc/letsencrypt/cloudflare.ini'
 ```
+
+### PM2 box: certbot in a venv (no Docker)
+
+```bash
+sudo dnf install -y -q python3 augeas-libs
+sudo python3 -m venv /opt/certbot
+sudo /opt/certbot/bin/pip install -q --upgrade pip certbot certbot-dns-cloudflare
+sudo ln -sf /opt/certbot/bin/certbot /usr/local/bin/certbot
+
+sudo certbot certonly --non-interactive --agree-tos -m <email> \
+  --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini \
+  --dns-cloudflare-propagation-seconds 30 -d <domain> -d <cms>
+```
+
+Renewal service: `ExecStart=/usr/local/bin/certbot renew --quiet`,
+`ExecStartPost=/usr/bin/systemctl reload nginx`; timer as below.
+
+### Docker box: certbot in Docker
 
 Issue one cert for both hosts:
 

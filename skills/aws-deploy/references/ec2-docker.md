@@ -1,4 +1,4 @@
-# Pipeline — file bodies
+# Option C — EC2 + Docker + GHCR: pipeline file bodies
 
 Placeholders: `<owner>` (GitHub user/org, lowercase), `<slug>`, `<domain>`, `<cms>`.
 Repo layout assumed: `frontend/` and `backend/`, each with its own Dockerfile, plus

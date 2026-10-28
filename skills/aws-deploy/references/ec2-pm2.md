@@ -1,4 +1,4 @@
-# Pipeline — file bodies (PM2)
+# Option D — EC2 + PM2: pipeline file bodies
 
 Placeholders: `<slug>`, `<domain>`, `<cms>`. Repo layout: `frontend/`, `backend/`,
 `ecosystem.config.js` and `deploy/deploy.sh` at the root.
@@ -156,14 +156,8 @@ A build on a small box can outlast the default SSH idle timeout — add
 
 ## Secrets
 
-Same four as the Docker skill — `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY` (a dedicated
+Same four as option C (`ec2-docker.md`) — `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY` (a dedicated
 ed25519 deploy key), `EC2_KNOWN_HOSTS` (from `ssh-keyscan`). No registry token: nothing
 is pulled from GHCR.
 
-## First-time server prep
-
-```bash
-sudo install -d -o ec2-user -g ec2-user -m 750 /opt/<slug> /opt/<slug>/releases /opt/<slug>/shared
-mkdir -p /opt/<slug>/shared/db /opt/<slug>/shared/uploads
-# scp backend.env and frontend.env into /opt/<slug>/shared, then chmod 600 them
-```
+First-time server layout (`/opt/<slug>/releases`, `shared/`) is in `ec2-server.md`.
