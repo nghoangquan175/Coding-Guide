@@ -1,12 +1,51 @@
 ---
 name: expo-testflight
-description: Ship an Expo (React Native) iOS app to TestFlight from a Windows machine, with no Mac — app.json/eas.json setup, signing credentials with eas credentials (Bundle ID, distribution certificate, provisioning profile, App Store Connect API key), the App Store Connect app, and a GitHub Actions workflow in one of three shapes (A. Actions triggers EAS Build, B. eas build --local on a GitHub macOS runner, C. fully on the runner with fastlane). Ends with internal testers on TestFlight, plus a side note for Android APKs. Includes the mistakes made on the first real run (Todo-RN, 2026-10-29). Use when asked to build an iOS app, upload to TestFlight or App Store Connect, set up iOS CI/CD, or get an Expo app onto testers' iPhones.
+description: Ship an Expo (React Native) iOS app to TestFlight from a Windows machine, with no Mac — app.json/eas.json setup, signing explained (private/public key, CSR, certificate, .p12, provisioning profile, App Store Connect API key — who makes and holds each), credentials with eas credentials, the App Store Connect app, and a GitHub Actions workflow in one of three shapes (A. Actions triggers EAS Build, B. eas build --local on a GitHub macOS runner, C. fully on the runner with fastlane). Ends with internal testers on TestFlight, plus a side note for Android APKs. Includes the mistakes made on the first real run (Todo-RN, 2026-10-29). Use when asked to build an iOS app, upload to TestFlight or App Store Connect, set up iOS CI/CD, or get an Expo app onto testers' iPhones.
 ---
 
 # Expo → TestFlight
 
 Get an Expo app from a repo to testers' iPhones through TestFlight, built in CI.
 Works from Windows: the build runs on macOS somewhere else (EAS or a GitHub runner).
+
+## The signing pieces — who makes what, who holds what
+
+An iPhone only runs apps whose signature traces back to **Apple**. Explain this table to
+the user before touching credentials; most confusion comes from mixing these up.
+
+| Piece | What it is | Made by | Held by | Purpose | Secret? |
+|---|---|---|---|---|---|
+| **Private key** | Half of a key pair | You (or EAS for you) | You: Mac Keychain / `.p12` / EAS. **Apple never has it** | **Signs** every build | **Yes** — whoever has it can sign as your team |
+| **Public key** | The other half | Made with the private key | Inside the CSR, then inside the certificate | Lets others **check** a signature made with the private key | No |
+| **CSR** (Certificate Signing Request) | Public key + team name, sent to Apple | You (or EAS) | — one-off | Asks Apple for a certificate | No |
+| **Certificate** (`.cer`, X.509) | Public key + "belongs to team X" + **Apple's signature**. Valid 1 year | **Apple**, from the CSR | Apple (Developer Portal), you, EAS; **embedded in every `.ipa`** | Proves the public key is your team's and Apple vouches for it | No |
+| **`.p12`** (PKCS#12) | Certificate + private key in one password-protected file | You (export) | EAS / GitHub Secrets (base64) / another Mac | Moves the signing identity to CI or another machine | **Yes** |
+| **Provisioning profile** | Apple-signed: App ID + allowed certificates + allowed devices (dev / ad hoc) + entitlements (push, iCloud…) | **Apple** | Apple, EAS; **embedded in every `.ipa`** | Permission: "this app may be signed by these certs, run on these devices" | No |
+| **App Store Connect API key** | `.p8` private key + Key ID + Issuer ID | An Admin (or EAS via `eas credentials`) | `.p8`: EAS / GitHub Secrets — Apple lets you **download it once**. App Store Connect keeps only its name, ID and *Revoke* | Lets tools (`eas submit`, fastlane) upload and manage TestFlight **without Apple ID login or 2FA** | **Yes** (the `.p8`) |
+| **Apple ID of the app** (`ascAppId`) | A number like `6828363891` | App Store Connect, on New App | `eas.json` | Tells `eas submit` which app to upload to | No |
+
+How a check works:
+
+```
+Build → signed with the private key, certificate + profile embedded → .ipa
+Checker (Apple on upload, or the iPhone for dev / ad hoc):
+  1. public key from the certificate verifies the build's signature
+  2. Apple's signature on the certificate is valid (Apple's root cert is built into every iPhone)
+  3. the profile allows this certificate (and, for dev / ad hoc, this device's UDID)
+```
+
+| Path | Who checks **your** signature | What the iPhone checks |
+|---|---|---|
+| TestFlight / App Store (through Apple) | Apple, on upload — then **re-signs** it | Apple's signature |
+| Development / Ad hoc (straight to the phone) | The iPhone | Your signature + profile + its UDID listed |
+
+- App identity on iOS is **Bundle ID + Team**, not the certificate: renewing an expired
+  certificate doesn't break updates. An expired cert / profile stops **ad hoc / dev**
+  installs from launching; App Store / TestFlight builds are unaffected (Apple re-signed them).
+- Lose the private key → revoke the certificate, make a new one, regenerate the profile.
+  Annoying, not fatal — unlike losing Android's app signing key.
+- With options A/B, `eas credentials` does all of it: makes the key pair, sends the CSR,
+  stores cert + private key + profile + API key on EAS. You never see a CSR.
 
 ## Pick the CI shape
 
@@ -161,6 +200,7 @@ Trigger with `workflow_dispatch` only (minutes), `concurrency` with
 
 ## Android, side note
 
+Full version — keys, local Gradle builds, Play Console — in the **`expo-android-release`** skill.
 Testers on Android only need an **APK**: `eas build -p android --profile preview` (cloud)
 or `eas build --local -p android --profile preview` on an `ubuntu-latest` runner, then
 send the file or EAS link (testers allow "install unknown apps"). An **AAB** is only for
