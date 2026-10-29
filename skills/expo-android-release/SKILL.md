@@ -1,6 +1,6 @@
 ---
 name: expo-android-release
-description: Build and hand out an Expo (React Native) Android app — the signing keys first (keystore, private key, self-signed certificate, debug vs release keys, upload key vs Play App Signing key, SHA-1 for Google services), then an APK for testers built locally on Windows with Gradle, on EAS, or in GitHub Actions, how to send it (file, GitHub Release, Firebase App Distribution), and later Google Play Console (account, permissions, package name, AAB, versionCode, Internal / Closed / Open / Production tracks). Use when asked to build an APK or AAB, sign an Android app, send an Android build to testers, set up Android CI, or publish to Google Play.
+description: Build and hand out an Expo (React Native) Android app — the signing keys first (keystore, private key, self-signed certificate, debug vs release keys, upload key vs Play App Signing key, SHA-1 for Google services), then an APK for testers built with Gradle on a GitHub Linux runner (proven), on EAS, or locally on Windows (and why that hits the 260-char path limit), how to send it (file, GitHub Release, Firebase App Distribution), and later Google Play Console (account, permissions, package name, AAB, versionCode, Internal / Closed / Open / Production tracks). Use when asked to build an APK or AAB, sign an Android app, send an Android build to testers, set up Android CI, or publish to Google Play.
 ---
 
 # Expo → Android (APK for testers, then Google Play)
@@ -67,14 +67,64 @@ Expo `eas.json` profile for an APK: `"preview": { "distribution": "internal", "a
 
 | Option | Runs on | Signing | Proven on |
 |---|---|---|---|
-| **1. Local Gradle on Windows** | Your PC (Android SDK + JDK 17) | Debug key by default; your keystore with a config plugin | Todo-RN, debug-signed |
-| **2. EAS cloud** — `eas build -p android --profile preview` | Expo's servers | EAS generates and keeps a keystore on first build | Not yet |
-| **3. GitHub Actions** — `eas build --local -p android --profile preview` on `ubuntu-latest` | GitHub's runner (1× minutes, unlike macOS) | The keystore on EAS (create it first: `eas credentials -p android`) | Not yet |
+| **1. GitHub Actions, plain Gradle** — `expo prebuild` + `./gradlew assembleRelease` on `ubuntu-latest` | GitHub's runner (1× minutes) | RN template debug keystore — same on every build | **Todo-RN, 2026-10-29: ~21 min, 34 MB arm64 APK** |
+| **2. Local Gradle on Windows** | Your PC (Android SDK + JDK 17) | Debug key by default; your keystore with a config plugin | **Failed** — see below |
+| **3. EAS cloud** — `eas build -p android --profile preview` | Expo's servers | EAS generates and keeps a keystore on first build | Not yet |
+| **4. GitHub Actions + EAS** — `eas build --local -p android --profile preview` | GitHub's runner | The keystore on EAS (create it first: `eas credentials -p android`) | Not yet |
 
-`eas build --local` **doesn't run on Windows** — that's EAS's wrapper, not Android. Plain
-Gradle builds fine on Windows (option 1).
+`eas build --local` **doesn't run on Windows** — that's EAS's wrapper, not Android.
 
-### Option 1 — local Gradle on Windows
+### Option 1 — GitHub Actions, plain Gradle (proven)
+
+```yaml
+name: Android → APK
+on:
+  workflow_dispatch:
+concurrency:
+  group: android-build
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci
+      - run: npx expo prebuild --platform android --no-install
+      - name: Build APK
+        working-directory: android
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
+      - name: Name the APK
+        run: |
+          VERSION=$(node -p "require('./app.json').expo.version")
+          mkdir -p dist
+          cp android/app/build/outputs/apk/release/app-release.apk "dist/<app>-$VERSION-build$GITHUB_RUN_NUMBER.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: dist/*.apk
+          retention-days: 30
+```
+
+- Get it: Actions → the run → **Artifacts** (a zip), or `gh run download <run-id> -n android-apk -D dist`.
+  On a **private** repo only people with repo access can download — hand the file on.
+- The RN template's `debug.keystore` is the same file everywhere (SHA-1
+  `5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25`), so CI builds update over
+  each other. It's public — testing only, never Play.
+- `arm64-v8a` only: every current phone, and a quarter of the C++ work on a private repo's
+  2-core runner. Drop the flag for emulators (x86_64) or old 32-bit phones.
+- Check an APK: `apksigner verify --print-certs <apk>` (in the SDK's `build-tools`).
+
+### Option 2 — local Gradle on Windows (failed on Todo-RN — read before trying)
 
 Check first: `ANDROID_HOME` (Android Studio's SDK, e.g. `%LOCALAPPDATA%\Android\Sdk`) and
 `JAVA_HOME` on **JDK 17** (`java -version`).
@@ -95,6 +145,15 @@ cd android
 - `npx expo run:android --variant release` builds **and installs** on a connected phone /
   emulator instead.
 - Clean rebuild after changing `app.json` / native deps: `npx expo prebuild -p android --clean`.
+
+What went wrong on Todo-RN (project at `C:\PROJECT\Personal\Todo-RN`):
+
+| Problem | Why | What didn't work | What does |
+|---|---|---|---|
+| `ninja: error: mkdir(...CSS/interpolation/transforms/operations): No such file or directory` in `react-native-reanimated` | Windows **260-char path limit**: CMake puts the project's full path into object paths **twice** (~284 chars here). `LongPathsEnabled` was 0, and the SDK's CMake 3.22 ninja can't do long paths anyway | `subst T: <project>` — Node/CMake resolve the mapped drive back to the real `C:\...` path; mapping the drive to the project root also breaks Expo autolinking ("Couldn't find package.json up from T:ndroid") | Build on **Linux CI** (option 1); or clone to a short path (`C:pp`, under ~10 chars); or enable long paths (admin) **and** install a newer CMake from SDK Manager |
+| Build killed for low memory | C++ for 4 ABIs in parallel + the Gradle daemon | — | `-PreactNativeArchitectures=arm64-v8a --max-workers=2`, `gradlew --stop` first, close other apps |
+| `prebuild` rewrote `package.json` scripts (`expo start --android` → `expo run:android`) | Prebuild's default | — | `git checkout package.json` if the project runs on Expo Go |
+| Stale CMake cache with too-long paths can't be deleted from PowerShell | Same path limit | `Remove-Item -Recurse` | `rm -rf` from Git Bash |
 
 ### Version numbers
 
